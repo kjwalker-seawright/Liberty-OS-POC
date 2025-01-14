@@ -5,6 +5,9 @@ import { Settings, AlertCircle, Cpu, Activity, TrendingUp, BarChart2 } from 'luc
 import { MetricCard } from './components/MetricCard';
 import { ProgressRing } from './components/ProgressRing';
 import { ParameterControl } from './components/ParameterControl';
+import { QualityMetrics } from './components/QualityMetrics';
+import { MaintenancePanel } from './components/MaintenancePanel';
+import { AnomalyDetection } from './components/AnomalyDetection';
 
 function App() {
   const [processData, setProcessData] = useState(null);
@@ -53,7 +56,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#0B1120] text-gray-100">
-      {/* Header */}
+      {/* Header - Same as before */}
       <div className="border-b border-white/10 bg-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-6">
@@ -75,7 +78,7 @@ function App() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Metrics Grid */}
+        {/* Basic Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <MetricCard
             title="Operation Time"
@@ -85,9 +88,9 @@ function App() {
           />
           <MetricCard
             title="Quality Score"
-            value={`${processData.quality_score}%`}
+            value={`${processData.quality_metrics.overall_quality.toFixed(1)}%`}
             icon={<AlertCircle className="h-6 w-6 text-emerald-400" />}
-            trend={processData.quality_score > 85 ? "positive" : "negative"}
+            trend={processData.quality_metrics.overall_quality > 85 ? "positive" : "negative"}
             detail="AI Predicted"
           />
           <MetricCard
@@ -104,7 +107,13 @@ function App() {
           />
         </div>
 
-        {/* Charts and Optimization */}
+        {/* Advanced ML Analytics Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <QualityMetrics metrics={processData.quality_metrics} />
+          <MaintenancePanel metrics={processData.maintenance_metrics} />
+        </div>
+
+        {/* Process Monitoring and Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div className="tech-card chart-container p-6 rounded-xl">
             <div className="flex items-center justify-between mb-6">
@@ -152,7 +161,7 @@ function App() {
                   <Legend />
                   <Area 
                     type="monotone" 
-                    dataKey="quality_score" 
+                    dataKey="quality_metrics.overall_quality" 
                     name="Quality Score" 
                     stroke="#22C5F4" 
                     fill="url(#qualityGradient)"
@@ -170,44 +179,8 @@ function App() {
               </ResponsiveContainer>
             </div>
           </div>
-
-          {processData.optimization_suggestions && (
-            <div className="tech-card p-6 rounded-xl">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-lg bg-white/5">
-                    <TrendingUp className="h-6 w-6 text-primary-glow" />
-                  </div>
-                  <h3 className="ml-4 text-lg font-semibold text-gray-200">AI Optimization</h3>
-                </div>
-                <div className="relative">
-                  <ProgressRing progress={processData.optimization_suggestions.predicted_quality} />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-sm font-bold text-primary-glow">
-                      {processData.optimization_suggestions.predicted_quality.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                {Object.entries(processData.optimization_suggestions.optimized_parameters).map(([param, value]) => (
-                  <div key={param} className="flex items-center justify-between p-3 rounded-lg bg-white/5">
-                    <span className="text-sm font-medium text-gray-400">
-                      {param.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                    </span>
-                    <div className="flex items-center space-x-3">
-                      <span className="text-sm text-gray-500">{parameters[param]}</span>
-                      <div className="w-8 h-0.5 bg-primary-glow/20 relative">
-                        <div className="absolute -top-1 right-0 w-2 h-2 rotate-45 border-t-2 border-r-2 border-primary-glow"></div>
-                      </div>
-                      <span className="text-sm font-medium text-primary-glow">{value}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          
+          <AnomalyDetection anomalyData={processData.anomaly_detection} />
         </div>
 
         {/* Parameter Controls */}
