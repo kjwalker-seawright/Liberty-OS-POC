@@ -1,13 +1,15 @@
 # backend/app/main.py
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 import numpy as np
-from .services.ml_service import ManufacturingMLService
+from datetime import datetime
 
-app = FastAPI(title="Liberty OS POC")
+from .services.enhanced_ml_service import EnhancedManufacturingMLService
+
+app = FastAPI(title="Liberty OS")
 
 # Enable CORS
 app.add_middleware(
@@ -19,10 +21,8 @@ app.add_middleware(
 )
 
 # Initialize ML Service
-ml_service = ManufacturingMLService()
-ml_service.initialize_models()
+ml_service = EnhancedManufacturingMLService()
 
-# Data models
 class MachiningParameters(BaseModel):
     cutting_speed: float
     feed_rate: float
@@ -31,7 +31,8 @@ class MachiningParameters(BaseModel):
 
 class ProcessSimulation(BaseModel):
     operation_time: float
-    quality_score: float
+    quality_metrics: Dict
+    maintenance_metrics: Dict
     energy_consumption: float
     tool_wear: float
     optimization_suggestions: Optional[Dict] = None
@@ -39,7 +40,7 @@ class ProcessSimulation(BaseModel):
 
 def simulate_machining_process(params: MachiningParameters) -> ProcessSimulation:
     """Simulate a CNC machining process with given parameters."""
-    # Base calculations with realistic ranges
+    # Calculate basic metrics
     operation_time = 30 + np.random.normal(0, 2)
     
     # Adjust operation time based on parameters
@@ -47,8 +48,11 @@ def simulate_machining_process(params: MachiningParameters) -> ProcessSimulation
     feed_factor = params.feed_rate / 0.2
     operation_time = operation_time * (1 / speed_factor) * (1 / feed_factor)
     
-    # Get quality prediction from ML model
-    quality_score = ml_service.predict_quality(params.dict())
+    # Get ML predictions
+    quality_metrics = ml_service.predict_quality(params.dict())
+    maintenance_metrics = ml_service.predict_maintenance(params.dict())
+    optimization_data = ml_service.optimize_parameters(params.dict())
+    anomaly_data = ml_service.detect_anomalies(params.dict())
     
     # Calculate energy consumption (kWh)
     energy_consumption = (
@@ -62,37 +66,55 @@ def simulate_machining_process(params: MachiningParameters) -> ProcessSimulation
         (params.depth_of_cut / 2) * 
         100
     ))
-    
-    # Get optimization suggestions
-    optimization_data = ml_service.optimize_parameters(params.dict())
-    
-    # Check for anomalies
-    anomaly_data = ml_service.detect_anomalies(params.dict(), quality_score)
-    
+
     return ProcessSimulation(
         operation_time=round(operation_time, 2),
-        quality_score=round(quality_score, 2),
+        quality_metrics=quality_metrics,
+        maintenance_metrics=maintenance_metrics,
         energy_consumption=round(energy_consumption, 2),
         tool_wear=round(tool_wear, 2),
         optimization_suggestions=optimization_data,
         anomaly_detection=anomaly_data
     )
 
+@app.on_event("startup")
+async def startup_event():
+    """Initialize ML models on startup."""
+    ml_service.initialize_models()
+
 @app.get("/")
 async def root():
-    return {"message": "Liberty OS POC API"}
+    return {"message": "Liberty OS API"}
 
 @app.post("/simulate/machining")
 async def simulate_machining(params: MachiningParameters):
     """Simulate a machining operation with given parameters."""
-    result = simulate_machining_process(params)
-    return result
+    try:
+        result = simulate_machining_process(params)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/optimize/parameters")
 async def optimize_parameters(params: MachiningParameters):
     """Get optimized parameters for current settings."""
-    return ml_service.optimize_parameters(params.dict())
+    try:
+        return ml_service.optimize_parameters(params.dict())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.post("/analyze/maintenance")
+async def analyze_maintenance(params: MachiningParameters):
+    """Get detailed maintenance analysis."""
+    try:
+        return ml_service.predict_maintenance(params.dict())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/detect/anomalies")
+async def detect_anomalies(params: MachiningParameters):
+    """Detect and analyze process anomalies."""
+    try:
+        return ml_service.detect_anomalies(params.dict())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
