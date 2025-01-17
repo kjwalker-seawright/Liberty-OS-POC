@@ -8,6 +8,7 @@ import { ParameterControl } from './components/ParameterControl';
 import { QualityMetrics } from './components/QualityMetrics';
 import { MaintenancePanel } from './components/MaintenancePanel';
 import { AnomalyDetection } from './components/AnomalyDetection';
+import WorkflowTracker from './components/workflow/WorkflowTracker';
 
 function App() {
   const [processData, setProcessData] = useState(null);
@@ -56,7 +57,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#0B1120] text-gray-100">
-      {/* Header - Same as before */}
+      {/* Header */}
       <div className="border-b border-white/10 bg-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-6">
@@ -105,6 +106,11 @@ function App() {
             icon={<Activity className="h-6 w-6 text-red-400" />}
             trend={processData.tool_wear < 50 ? "positive" : "negative"}
           />
+        </div>
+
+        {/* Workflow Tracker */}
+        <div className="mb-8">
+          <WorkflowTracker />
         </div>
 
         {/* Advanced ML Analytics Section */}

@@ -8,6 +8,7 @@ import numpy as np
 from datetime import datetime
 
 from .services.enhanced_ml_service import EnhancedManufacturingMLService
+from .services.workflow_service import WorkflowService
 
 app = FastAPI(title="Liberty OS")
 
@@ -19,6 +20,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Initialize WorkflowService
+workflow_service = WorkflowService()
+
+@app.get("/workflow/stages")
+async def get_workflow_stages():
+    """Get all workflow stages and their status"""
+    return workflow_service.get_all_stages()
+
+@app.get("/workflow/current")
+async def get_current_stage():
+    """Get the currently active workflow stage"""
+    return workflow_service.get_current_stage()
+
+@app.post("/workflow/progress")
+async def update_progress(progress: float):
+    """Update the progress of the current stage"""
+    workflow_service.update_stage_progress(progress)
+    return workflow_service.get_current_stage()
+
+@app.post("/workflow/quality-gate")
+async def update_quality_gate(stage_index: int, gate_name: str, measurements: Dict[str, float]):
+    """Update a quality gate with measurements"""
+    workflow_service.update_quality_gate(stage_index, gate_name, measurements)
+    return workflow_service.get_all_stages()
 
 # Initialize ML Service
 ml_service = EnhancedManufacturingMLService()
