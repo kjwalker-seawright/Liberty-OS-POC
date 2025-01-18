@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@react-three/drei": "^9.121.2",
+    "@react-three/fiber": "^8.17.12",
+    "@react-three/postprocessing": "^2.16.7",
+    "three": "^0.172.0"
+  }
+}

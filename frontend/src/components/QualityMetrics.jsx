@@ -1,12 +1,12 @@
 // src/components/QualityMetrics.jsx
 import React from 'react';
-import { CircleCheck, AlertTriangle } from 'lucide-react';
+import { CheckCircle, AlertTriangle } from 'lucide-react';
 
 export const QualityMetrics = ({ metrics }) => (
   <div className="tech-card p-6 rounded-xl">
     <div className="flex items-center mb-6">
       <div className="p-3 rounded-lg bg-white/5">
-        <CircleCheck className="h-6 w-6 text-primary-glow" />
+        <CheckCircle className="h-6 w-6 text-primary-glow" />
       </div>
       <h3 className="ml-4 text-lg font-semibold text-gray-200">Quality Analysis</h3>
     </div>

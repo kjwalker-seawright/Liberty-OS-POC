@@ -21,34 +21,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize WorkflowService
+# Initialize services
 workflow_service = WorkflowService()
-
-@app.get("/workflow/stages")
-async def get_workflow_stages():
-    """Get all workflow stages and their status"""
-    return workflow_service.get_all_stages()
-
-@app.get("/workflow/current")
-async def get_current_stage():
-    """Get the currently active workflow stage"""
-    return workflow_service.get_current_stage()
-
-@app.post("/workflow/progress")
-async def update_progress(progress: float):
-    """Update the progress of the current stage"""
-    workflow_service.update_stage_progress(progress)
-    return workflow_service.get_current_stage()
-
-@app.post("/workflow/quality-gate")
-async def update_quality_gate(stage_index: int, gate_name: str, measurements: Dict[str, float]):
-    """Update a quality gate with measurements"""
-    workflow_service.update_quality_gate(stage_index, gate_name, measurements)
-    return workflow_service.get_all_stages()
-
-# Initialize ML Service
 ml_service = EnhancedManufacturingMLService()
 
+# Base models
 class MachiningParameters(BaseModel):
     cutting_speed: float
     feed_rate: float
@@ -64,6 +41,54 @@ class ProcessSimulation(BaseModel):
     optimization_suggestions: Optional[Dict] = None
     anomaly_detection: Optional[Dict] = None
 
+class ProgressUpdate(BaseModel):
+    progress: float
+    metrics: Optional[Dict] = None
+
+class QualityGateUpdate(BaseModel):
+    stage_id: str
+    gate_name: str
+    measurements: Dict
+
+# Workflow endpoints
+@app.get("/workflow/stages")
+async def get_workflow_stages():
+    """Get all workflow stages and their status"""
+    return workflow_service.get_all_stages()
+
+@app.get("/workflow/current")
+async def get_current_stage():
+    """Get the currently active workflow stage"""
+    return workflow_service.get_current_stage()
+
+@app.put("/workflow/stage/progress")
+async def update_stage_progress(update: ProgressUpdate):
+    """Update the progress of the current stage"""
+    workflow_service.update_stage_progress(update.progress, update.metrics)
+    return workflow_service.get_all_stages()
+
+@app.post("/workflow/quality-gate")
+async def update_quality_gate(update: QualityGateUpdate):
+    """Update a quality gate with measurements"""
+    success = workflow_service.update_quality_gate(
+        update.stage_id,
+        update.gate_name,
+        update.measurements
+    )
+    return {
+        "success": success,
+        "stages": workflow_service.get_all_stages()
+    }
+
+@app.get("/workflow/stage/{stage_id}/metrics")
+async def get_stage_metrics(stage_id: str):
+    """Get metrics for a specific stage"""
+    stage = next((s for s in workflow_service.stages if s.id == stage_id), None)
+    if not stage:
+        raise HTTPException(status_code=404, detail="Stage not found")
+    return stage.metrics
+
+# Machining simulation and optimization
 def simulate_machining_process(params: MachiningParameters) -> ProcessSimulation:
     """Simulate a CNC machining process with given parameters."""
     # Calculate basic metrics
@@ -103,6 +128,7 @@ def simulate_machining_process(params: MachiningParameters) -> ProcessSimulation
         anomaly_detection=anomaly_data
     )
 
+# Application endpoints
 @app.on_event("startup")
 async def startup_event():
     """Initialize ML models on startup."""
@@ -142,5 +168,21 @@ async def detect_anomalies(params: MachiningParameters):
     """Detect and analyze process anomalies."""
     try:
         return ml_service.detect_anomalies(params.dict())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/optimize/parameters/{stage}")
+async def optimize_parameters(stage: str, params: MachiningParameters):
+    """Get optimized parameters for current manufacturing stage"""
+    try:
+        return ml_service.get_parameter_optimization(params.dict(), stage)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/analyze/parameters")
+async def analyze_parameters(params: MachiningParameters):
+    """Get detailed parameter relationship analysis"""
+    try:
+        return ml_service.analyze_parameter_relationships(params.dict())
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

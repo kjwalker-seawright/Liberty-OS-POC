@@ -108,3 +108,179 @@ class EnhancedManufacturingMLService:
             "predicted_quality": self._to_python_type(predicted_quality),
             "quality_improvement": self._to_python_type(quality_improvement)
         }
+    
+    def get_parameter_optimization(self, parameters: Dict, current_stage: str) -> Dict:
+        """Get optimized parameters based on current stage and conditions"""
+        if not self.initialized:
+            self.initialize_models()
+
+        # Base optimization factors for each stage
+        stage_factors = {
+            "Material Setup": {"cutting_speed": 1.0, "feed_rate": 1.0, "depth_of_cut": 1.0},
+            "Initial Machining": {"cutting_speed": 1.2, "feed_rate": 0.9, "depth_of_cut": 1.1},
+            "Quality Verification": {"cutting_speed": 0.9, "feed_rate": 0.8, "depth_of_cut": 0.9},
+            "Process Completion": {"cutting_speed": 1.0, "feed_rate": 1.0, "depth_of_cut": 1.0}
+        }
+
+        # Get stage-specific factors
+        factors = stage_factors.get(current_stage, {"cutting_speed": 1.0, "feed_rate": 1.0, "depth_of_cut": 1.0})
+
+        # Calculate optimized parameters
+        optimized_params = {
+            "cutting_speed": min(200, parameters["cutting_speed"] * factors["cutting_speed"]),
+            "feed_rate": min(0.5, parameters["feed_rate"] * factors["feed_rate"]),
+            "depth_of_cut": min(5.0, parameters["depth_of_cut"] * factors["depth_of_cut"]),
+            "tool_type": parameters["tool_type"]
+        }
+
+        # Predict quality improvements
+        current_quality = self.predict_quality(parameters)
+        optimized_quality = self.predict_quality(optimized_params)
+        quality_improvement = optimized_quality["overall_quality"] - current_quality["overall_quality"]
+
+        # Calculate efficiency gains
+        efficiency_gains = {
+            "time_reduction": round(((1 - factors["cutting_speed"]) * 100), 1),
+            "energy_savings": round(((1 - factors["feed_rate"] * factors["depth_of_cut"]) * 100), 1),
+            "tool_life_extension": round(((1 - max(factors.values())) * 100), 1)
+        }
+
+        return {
+            "optimized_parameters": optimized_params,
+            "quality_improvement": quality_improvement,
+            "efficiency_gains": efficiency_gains,
+            "recommendations": self._generate_recommendations(parameters, optimized_params, current_stage)
+        }
+
+    def _generate_recommendations(self, current_params: Dict, optimized_params: Dict, stage: str) -> List[str]:
+        """Generate specific recommendations based on parameter differences"""
+        recommendations = []
+        
+        # Analyze parameter changes
+        if optimized_params["cutting_speed"] > current_params["cutting_speed"]:
+            recommendations.append("Increase cutting speed to improve material removal rate")
+        elif optimized_params["cutting_speed"] < current_params["cutting_speed"]:
+            recommendations.append("Reduce cutting speed to improve surface finish")
+
+        if optimized_params["feed_rate"] > current_params["feed_rate"]:
+            recommendations.append("Increase feed rate to reduce operation time")
+        elif optimized_params["feed_rate"] < current_params["feed_rate"]:
+            recommendations.append("Reduce feed rate to improve dimensional accuracy")
+
+        if optimized_params["depth_of_cut"] > current_params["depth_of_cut"]:
+            recommendations.append("Increase depth of cut for faster material removal")
+        elif optimized_params["depth_of_cut"] < current_params["depth_of_cut"]:
+            recommendations.append("Reduce depth of cut to minimize tool wear")
+
+        return recommendations
+    
+    def analyze_parameter_relationships(self, parameters: Dict) -> Dict:
+        """Analyze how parameters interact and affect quality/efficiency"""
+        
+        # Calculate parameter interactions
+        speed_feed_interaction = (parameters["cutting_speed"] * parameters["feed_rate"]) / 20
+        depth_load = parameters["depth_of_cut"] * parameters["feed_rate"] * 100
+        tool_load = (parameters["cutting_speed"] * parameters["feed_rate"] * parameters["depth_of_cut"]) / 4
+
+        # Quality impact analysis
+        quality_impacts = {
+            "surface_finish": self._calculate_surface_finish_impact(parameters),
+            "dimensional_accuracy": self._calculate_dimensional_accuracy(parameters),
+            "tool_wear_rate": self._calculate_tool_wear_rate(parameters)
+        }
+
+        # Efficiency analysis
+        efficiency_impacts = {
+            "material_removal_rate": self._calculate_material_removal_rate(parameters),
+            "energy_efficiency": self._calculate_energy_efficiency(parameters),
+            "tool_life": self._calculate_tool_life(parameters)
+        }
+
+        return {
+            "parameter_interactions": {
+                "speed_feed_interaction": round(speed_feed_interaction, 2),
+                "depth_load": round(depth_load, 2),
+                "tool_load": round(tool_load, 2)
+            },
+            "quality_impacts": quality_impacts,
+            "efficiency_impacts": efficiency_impacts,
+            "optimization_space": self._calculate_optimization_space(parameters)
+        }
+
+    def _calculate_surface_finish_impact(self, parameters: Dict) -> Dict:
+        base_impact = (parameters["cutting_speed"] / 100) * (0.2 / parameters["feed_rate"])
+        return {
+            "score": min(100, max(0, base_impact * 80)),
+            "confidence": min(100, max(0, 85 + np.random.normal(0, 5))),
+            "limiting_factor": self._get_limiting_factor(parameters)
+        }
+
+    def _calculate_dimensional_accuracy(self, parameters: Dict) -> Dict:
+        base_accuracy = 100 - (parameters["feed_rate"] * 100) - (parameters["depth_of_cut"] * 10)
+        return {
+            "score": min(100, max(0, base_accuracy)),
+            "confidence": min(100, max(0, 90 + np.random.normal(0, 3))),
+            "tolerance_range": f"±{(parameters['feed_rate'] * 0.1):.3f}mm"
+        }
+
+    def _calculate_tool_wear_rate(self, parameters: Dict) -> Dict:
+        wear_rate = (parameters["cutting_speed"] * parameters["feed_rate"] * parameters["depth_of_cut"]) / 10
+        return {
+            "rate": min(100, max(0, wear_rate)),
+            "estimated_life": max(0, 100 - wear_rate * 5),
+            "wear_pattern": self._predict_wear_pattern(parameters)
+        }
+
+    def _calculate_material_removal_rate(self, parameters: Dict) -> float:
+        return round(parameters["cutting_speed"] * parameters["feed_rate"] * parameters["depth_of_cut"] * 0.8, 2)
+
+    def _calculate_energy_efficiency(self, parameters: Dict) -> Dict:
+        base_efficiency = 100 - (parameters["cutting_speed"] * 0.2) - (parameters["depth_of_cut"] * 10)
+        return {
+            "score": min(100, max(0, base_efficiency)),
+            "consumption_rate": round(parameters["cutting_speed"] * parameters["depth_of_cut"] * 0.05, 2),
+            "optimization_potential": min(100, max(0, 100 - base_efficiency))
+        }
+
+    def _calculate_tool_life(self, parameters: Dict) -> Dict:
+        base_life = 100 - (parameters["cutting_speed"] * 0.3) - (parameters["feed_rate"] * 100) - (parameters["depth_of_cut"] * 10)
+        return {
+            "remaining_percentage": min(100, max(0, base_life)),
+            "estimated_hours": round(max(0, base_life * 0.5), 1),
+            "replacement_warning": base_life < 30
+        }
+
+    def _get_limiting_factor(self, parameters: Dict) -> str:
+        if parameters["cutting_speed"] > 150:
+            return "High cutting speed"
+        elif parameters["feed_rate"] > 0.3:
+            return "Excessive feed rate"
+        elif parameters["depth_of_cut"] > 3:
+            return "Deep cut depth"
+        return "None"
+
+    def _predict_wear_pattern(self, parameters: Dict) -> str:
+        if parameters["cutting_speed"] > 150:
+            return "Flank wear dominant"
+        elif parameters["feed_rate"] > 0.3:
+            return "Crater wear dominant"
+        return "Normal wear pattern"
+
+    def _calculate_optimization_space(self, parameters: Dict) -> Dict:
+        return {
+            "cutting_speed": {
+                "min": max(50, parameters["cutting_speed"] * 0.8),
+                "optimal": parameters["cutting_speed"] * 1.1,
+                "max": min(200, parameters["cutting_speed"] * 1.2)
+            },
+            "feed_rate": {
+                "min": max(0.1, parameters["feed_rate"] * 0.8),
+                "optimal": parameters["feed_rate"] * 1.05,
+                "max": min(0.5, parameters["feed_rate"] * 1.2)
+            },
+            "depth_of_cut": {
+                "min": max(0.5, parameters["depth_of_cut"] * 0.8),
+                "optimal": parameters["depth_of_cut"] * 1.05,
+                "max": min(5, parameters["depth_of_cut"] * 1.2)
+            }
+        }

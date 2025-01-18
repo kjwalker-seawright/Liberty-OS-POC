@@ -9,6 +9,9 @@ import { QualityMetrics } from './components/QualityMetrics';
 import { MaintenancePanel } from './components/MaintenancePanel';
 import { AnomalyDetection } from './components/AnomalyDetection';
 import WorkflowTracker from './components/workflow/WorkflowTracker';
+import OptimizationPanel from './components/OptimizationPanel';
+import ParameterAnalysis from './components/ParameterAnalysis';
+import DigitalTwin from './components/digital-twin/DigitalTwin';
 
 function App() {
   const [processData, setProcessData] = useState(null);
@@ -19,6 +22,7 @@ function App() {
     tool_type: "carbide"
   });
   const [history, setHistory] = useState([]);
+  const [currentStage, setCurrentStage] = useState("Initial Machining");
 
   const simulateMachining = useCallback(async () => {
     try {
@@ -45,6 +49,22 @@ function App() {
     const interval = setInterval(simulateMachining, 5000);
     return () => clearInterval(interval);
   }, [simulateMachining]);
+
+  useEffect(() => {
+    const fetchCurrentStage = async () => {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/workflow/current');
+        const data = await response.json();
+        setCurrentStage(data.name);
+      } catch (error) {
+        console.error('Error fetching current stage:', error);
+      }
+    };
+
+    fetchCurrentStage();
+    const interval = setInterval(fetchCurrentStage, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (!processData) return (
     <div className="min-h-screen bg-[#0B1120] flex items-center justify-center">
@@ -108,6 +128,14 @@ function App() {
           />
         </div>
 
+        {/* Digital Twin Section */}
+        <div className="mb-8">
+          <DigitalTwin
+            parameters={parameters}
+            processData={processData}
+          />
+        </div>
+
         {/* Workflow Tracker */}
         <div className="mb-8">
           <WorkflowTracker />
@@ -117,6 +145,19 @@ function App() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <QualityMetrics metrics={processData.quality_metrics} />
           <MaintenancePanel metrics={processData.maintenance_metrics} />
+        </div>
+
+        {/* Optimization Panel */}
+        <div className="mb-8">
+          <OptimizationPanel 
+            currentParams={parameters} 
+            currentStage={currentStage} 
+          />
+        </div>
+
+        {/* After the OptimizationPanel */}
+        <div className="mb-8">
+          <ParameterAnalysis currentParams={parameters} />
         </div>
 
         {/* Process Monitoring and Charts */}
